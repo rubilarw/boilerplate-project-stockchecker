@@ -93,13 +93,19 @@ suite('Functional Tests', function() {
   chai
     .request(server)
     .get('/api/stock-prices')
+    .set('X-Forwarded-For', '222.222.222.222') // IP simulada para evitar duplicados
     .query({ stock: ['GOOG', 'MSFT'], like: true })
     .end(function (err, res) {
       assert.equal(res.status, 200);
+      assert.isObject(res.body);
+      assert.property(res.body, 'stockData');
       assert.isArray(res.body.stockData);
       assert.lengthOf(res.body.stockData, 2);
 
-      res.body.stockData.forEach(stock => {
+      const [stockA, stockB] = res.body.stockData;
+
+      // Validar propiedades básicas
+      [stockA, stockB].forEach(stock => {
         assert.property(stock, 'stock');
         assert.property(stock, 'price');
         assert.property(stock, 'rel_likes');
@@ -109,12 +115,14 @@ suite('Functional Tests', function() {
       });
 
       // Validación cruzada: rel_likes deben ser opuestos
-      const [a, b] = res.body.stockData;
-      assert.equal(a.rel_likes, -b.rel_likes);
+      assert.equal(stockA.rel_likes, -stockB.rel_likes, 'rel_likes deben ser opuestos');
+
+      // Validar que al menos uno tenga rel_likes distinto de 0
+      assert.notEqual(stockA.rel_likes, 0, 'rel_likes no debe ser 0 en ambos');
 
       done();
     });
 });
 
-
-   });
+});
+    
