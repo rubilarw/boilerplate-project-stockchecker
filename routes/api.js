@@ -2,7 +2,9 @@
 
 const axios = require('axios');
 const mongoose = require('mongoose');
-const Stock = require('../models/Stock');
+const getStockData = require('../utils/stockService');
+const { registerLike, getLikes } = require('../utils/likeService');
+
 // Esquema de acciones
 const stockSchema = new mongoose.Schema({
   symbol: { type: String, required: true, uppercase: true, unique: true },
@@ -31,62 +33,66 @@ module.exports = function (app) {
   app.set('trust proxy', true);
 
   app.get('/api/stock-prices', async (req, res) => {
-    const ip = normalizeIp(req);
-    const hashedIP = anonymizeIP(ip);
-    try {
-      const stocks = Array.isArray(req.query.stock)
-        ? req.query.stock.map(s => s.toUpperCase())
-        : [req.query.stock.toUpperCase()];
+  const { stock, like } = req.query;
+  const ip = anonymizeIP(normalizeIp(req));
 
-      const like = req.query.like === 'true';
-      const ip = getClientIP(req);
+  if (Array.isArray(stock)) {
+    const [stock1, stock2] = stock;
 
-      const results = await Promise.all(
-        stocks.map(async (symbol) => {
-          const priceRes = await axios.get(`https://stock-price-checker-proxy.freecodecamp.rocks/v1/stock/${symbol}/quote`);
-          const price = priceRes.data.latestPrice;
+    const [data1, data2] = await Promise.all([
+      getStockData(stock1),
+      getStockData(stock2)
+    ]);
 
-          let stockDoc = await Stock.findOne({ stock: symbol });
-          if (!stockDoc) stockDoc = new Stock({ stock: symbol, likes: 0, ips: [] });
-
-          if (like && !stockDoc.ips.includes(ip)) {
-            stockDoc.likes += 1;
-            stockDoc.ips.push(ip);
-          }
-
-          await stockDoc.save();
-
-          return {
-            stock: symbol,
-            price,
-            likes: stockDoc.likes
-        };
-      })
-    );
-
-    // Si hay dos acciones, calcular rel_likes
-    if (results.length === 2) {
-      const relLikes = [
-        {
-          stock: results[0].stock,
-          price: results[0].price,
-          rel_likes: results[0].likes - results[1].likes
-        },
-        {
-          stock: results[1].stock,
-          price: results[1].price,
-          rel_likes: results[1].likes - results[0].likes
-        }
-      ];
-      return res.json({ stockData: relLikes });
+    if (data1.error || data2.error) {
+      return res.json({ stockData: 'Error al obtener datos de una o ambas acciones' });
     }
 
-    // Si hay una sola acción
-    res.json({ stockData: results[0] });
+    // Registrar likes si corresponde
+    if (like === 'true') {
+      await registerLike(data1.stock, ip);
+      await registerLike(data2.stock, ip);
+    }
 
-  } catch (err) {
-    console.error('❌ Error en /api/stock-prices:', err.message);
-    res.status(500).send('Error interno del servidor');
+    const likes1 = await getLikes(data1.stock);
+    const likes2 = await getLikes(data2.stock);
+
+    return res.json({
+      stockData: [
+        {
+          stock: data1.stock,
+          price: data1.price,
+          rel_likes: likes1 - likes2
+        },
+        {
+          stock: data2.stock,
+          price: data2.price,
+          rel_likes: likes2 - likes1
+        }
+      ]
+    });
   }
+
+  // Caso de una sola acción
+  const data = await getStockData(stock);
+
+  if (data.error) {
+    return res.json({ stockData: { stock: data.stock, price: 'N/A', likes: 0 } });
+  }
+
+  if (like === 'true') {
+    await registerLike(data.stock, ip);
+  }
+
+  const likes = await getLikes(data.stock);
+
+  return res.json({
+    stockData: {
+      stock: data.stock,
+      price: data.price,
+      likes
+    }
+  });
 });
+
 }
