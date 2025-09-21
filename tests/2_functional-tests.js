@@ -38,18 +38,22 @@ suite('Functional Tests', function() {
     });
 });
    test('3. Ver la misma acción y darle like otra vez: GET /api/stock-prices?stock=GOOG&like=true', function (done) {
-   this.timeout(5000);
+  this.timeout(5000);
 
   chai
     .request(server)
     .get('/api/stock-prices?stock=GOOG&like=true')
-    .end(function (err, res1) {
+    .end(function (err1, res1) {
+      if (err1) return done(err1);
+
       const likesIniciales = res1.body.stockData.likes;
 
       chai
         .request(server)
         .get('/api/stock-prices?stock=GOOG&like=true')
-        .end(function (err, res2) {
+        .end(function (err2, res2) {
+          if (err2) return done(err2);
+
           const likesFinales = res2.body.stockData.likes;
 
           assert.equal(res2.status, 200);
@@ -57,6 +61,8 @@ suite('Functional Tests', function() {
           done();
         });
     });
+
+
 });
   test('4. Ver dos acciones: GET /api/stock-prices?stock=GOOG&stock=MSFT', function (done) {
   this.timeout(5000);
