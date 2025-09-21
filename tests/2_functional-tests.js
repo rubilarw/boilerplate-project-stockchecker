@@ -81,6 +81,34 @@ suite('Functional Tests', function() {
       done();
     });
 });
-  
+  test('5. Ver dos acciones y darles like: GET /api/stock-prices?stock=GOOG&stock=MSFT&like=true', function (done) {
+  this.timeout(5000);
+
+  chai
+    .request(server)
+    .get('/api/stock-prices')
+    .query({ stock: ['GOOG', 'MSFT'], like: true })
+    .end(function (err, res) {
+      assert.equal(res.status, 200);
+      assert.isArray(res.body.stockData);
+      assert.lengthOf(res.body.stockData, 2);
+
+      res.body.stockData.forEach(stock => {
+        assert.property(stock, 'stock');
+        assert.property(stock, 'price');
+        assert.property(stock, 'rel_likes');
+        assert.isString(stock.stock);
+        assert.isNumber(stock.price);
+        assert.isNumber(stock.rel_likes);
+      });
+
+      // Validación cruzada: rel_likes deben ser opuestos
+      const [a, b] = res.body.stockData;
+      assert.equal(a.rel_likes, -b.rel_likes);
+
+      done();
+    });
+});
+
 
    });
