@@ -1,6 +1,7 @@
 'use strict';
 require('dotenv').config();
 const express     = require('express');
+const { normalizeIp, anonymizeIP } = require('./utils/ipUtils.js');
 const bodyParser  = require('body-parser');
 const cors        = require('cors');
 const helmet = require('helmet');

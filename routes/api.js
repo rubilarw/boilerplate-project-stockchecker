@@ -8,6 +8,7 @@ const stockSchema = new mongoose.Schema({
   symbol: { type: String, required: true, uppercase: true, unique: true },
   ips: { type: [String], default: [] }
 });
+const { normalizeIp, anonymizeIP } = require('../utils/ipUtils.js');
 
 function getClientIP(req) {
   const forwarded = req.headers['x-forwarded-for'];
@@ -22,25 +23,16 @@ async function getStockPrice(symbol) {
   return { symbol: res.data.symbol, price: Number(res.data.latestPrice) };
 }
 
-// Normalizar IP
-function normalizeIp(req) {
-  let ip =
-    req.headers['x-forwarded-for']?.split(',')[0] ||
-    req.ip ||
-    req.socket?.remoteAddress;
 
-  if (!ip) return 'unknown';
-  if (ip.includes('::ffff:')) ip = ip.split('::ffff:')[1];
-  if (ip === '::1') ip = '127.0.0.1';
-
-  return ip.trim();
-}
+// Usá hashedIP para validar likes únicos
 
 module.exports = function (app) {
   // Asegura que Express confíe en el proxy
   app.set('trust proxy', true);
 
   app.get('/api/stock-prices', async (req, res) => {
+    const ip = normalizeIp(req);
+    const hashedIP = anonymizeIP(ip);
     try {
       const stocks = Array.isArray(req.query.stock)
         ? req.query.stock.map(s => s.toUpperCase())
