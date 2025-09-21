@@ -8,6 +8,7 @@ chai.use(chaiHttp);
 suite('Functional Tests', function() {
   
   test('Viewing one stock', function(done) {
+    this.timeout(5000);
     chai.request(server)
       .get('/api/stock-prices')
       .query({ stock: 'GOOG' })
@@ -20,4 +21,66 @@ suite('Functional Tests', function() {
         done();
       });
   });
+  test('2. Ver una acción y darle like: GET /api/stock-prices?stock=GOOG&like=true', function (done) {
+  this.timeout(5000);
+
+  chai
+    .request(server)
+    .get('/api/stock-prices?stock=GOOG&like=true')
+    .end(function (err, res) {
+      assert.equal(res.status, 200);
+      assert.property(res.body, 'stockData');
+      assert.property(res.body.stockData, 'stock');
+      assert.property(res.body.stockData, 'price');
+      assert.property(res.body.stockData, 'likes');
+      assert.isAbove(res.body.stockData.likes, 0); 
+      done();
+    });
+});
+   test('3. Ver la misma acción y darle like otra vez: GET /api/stock-prices?stock=GOOG&like=true', function (done) {
+   this.timeout(5000);
+
+  chai
+    .request(server)
+    .get('/api/stock-prices?stock=GOOG&like=true')
+    .end(function (err, res1) {
+      const likesIniciales = res1.body.stockData.likes;
+
+      chai
+        .request(server)
+        .get('/api/stock-prices?stock=GOOG&like=true')
+        .end(function (err, res2) {
+          const likesFinales = res2.body.stockData.likes;
+
+          assert.equal(res2.status, 200);
+          assert.equal(likesFinales, likesIniciales); 
+          done();
+        });
+    });
+});
+  test('4. Ver dos acciones: GET /api/stock-prices?stock=GOOG&stock=MSFT', function (done) {
+  this.timeout(5000);
+
+  chai
+    .request(server)
+    .get('/api/stock-prices?stock=GOOG&stock=MSFT')
+    .end(function (err, res) {
+      assert.equal(res.status, 200);
+      assert.isArray(res.body.stockData);
+      assert.lengthOf(res.body.stockData, 2);
+
+      res.body.stockData.forEach(stock => {
+        assert.property(stock, 'stock');
+        assert.property(stock, 'price');
+        assert.property(stock, 'rel_likes');
+        assert.isString(stock.stock);
+        assert.isNumber(stock.price);
+        assert.isNumber(stock.rel_likes);
+      });
+
+      done();
+    });
+});
+  
+
    });
