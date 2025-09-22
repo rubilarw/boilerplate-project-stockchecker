@@ -5,6 +5,7 @@ const server = require('../server');
 
 chai.use(chaiHttp);
 
+
 suite('Functional Tests', function() {
   
   test('Viewing one stock', function(done) {
