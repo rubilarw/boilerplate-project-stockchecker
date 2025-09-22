@@ -47,10 +47,12 @@ app.use((req, res) => res.status(404).type('text').send('Not Found'));
 
 // Conectar a MongoDB
 const MONGODB_URI = process.env.DB;
+
 mongoose
-  .connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .connect(MONGODB_URI)
   .then(() => console.log('✅ MongoDB conectado'))
   .catch((err) => console.error('❌ Error MongoDB:', err.message));
+
 
 // Servidor
 const port = process.env.PORT || 3000;
